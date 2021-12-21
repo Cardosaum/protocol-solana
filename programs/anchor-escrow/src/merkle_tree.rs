@@ -1,4 +1,5 @@
 use super::*;
+use solana_program::log::sol_log_compute_units;
 
 use hashing::*;
 
@@ -11,6 +12,14 @@ pub enum MerkleTreeError {
 
 impl MerkleTreeAccount {
     pub fn insert(&mut self, commitment: [u8; 32]) -> Result<u32, MerkleTreeError> {
+        msg!("> Starting insert function...");
+        sol_log_compute_units();
+        // let params = PoseidonParameters::<&[u8]>::from_bytes(&[
+        //     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        //     0, 0, 0, 47, 229, 76, 96, 211, 172, 171, 243, 52, 58, 53, 182, 235, 161, 93, 180, 130,
+        //     27, 52, 15, 118, 231, 65, 226, 36, 150, 133, 237, 72, 153, 175, 108,
+        // ])
+        // .ok();
         let next_index = self.next_index;
         msg!("next index: {:?}", next_index);
         msg!("levels: {:?}", self.levels);
@@ -22,14 +31,18 @@ impl MerkleTreeAccount {
         let mut curr_index = next_index;
         let mut curr_level_hash = commitment;
         msg!("curr hash: {:?}", curr_level_hash);
+        msg!("> Loop size: {}", self.levels);
         for i in 0..self.levels {
+            msg!("> Iteration ({})...", i);
+            sol_log_compute_units();
             let (left, right) = if curr_index % 2 == 0 {
                 self.filled_subtrees[i as usize] = curr_level_hash;
                 (curr_level_hash, self.zeroes(i))
             } else {
                 (self.filled_subtrees[i as usize], curr_level_hash)
             };
-
+            sol_log_compute_units();
+            msg!("> Calling hash_left_right...");
             curr_level_hash = self.hash_left_right(left, right);
             curr_index = curr_index >> 1;
         }
@@ -42,14 +55,27 @@ impl MerkleTreeAccount {
     }
 
     fn hash_left_right(&self, left: [u8; 32], right: [u8; 32]) -> [u8; 32] {
+        sol_log_compute_units();
+        msg!("> Extend from slice...");
         let mut buf32 = [0u8; 32];
         let mut buf = vec![];
         buf.extend_from_slice(&left);
         buf.extend_from_slice(&right);
+        sol_log_compute_units();
+        msg!("Print formated buf...");
         msg!("buf: {:?}", buf);
+        sol_log_compute_units();
+        msg!("Calling hash...");
+        // let value = DEBUGBN254Poseidon::hash(&self.params, &buf);
+        // sol_log_compute_units();
+        // msg!("\n\nE EU IHHHHHHAAA\n\n");
+        // buf32.copy_from_slice(&value);
+
         if let Ok(value) = BN254CircomPoseidon3x5Hasher::hash(&self.params, &buf) {
+            msg!("\n\nE EU IHHHHHHAAA\n\n");
             buf32.copy_from_slice(&value);
         }
+        sol_log_compute_units();
 
         buf32
     }

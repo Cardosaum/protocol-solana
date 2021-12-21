@@ -3,6 +3,7 @@ use anchor_spl::token::{self, Mint, SetAuthority, TokenAccount, Transfer};
 use spl_token::instruction::AuthorityType;
 
 mod hashing;
+mod helpers;
 mod merkle_tree;
 
 declare_id!("Dw96F8NjN84googpni4mtSnCuAud9XkaPUFM1RJX53cK");
