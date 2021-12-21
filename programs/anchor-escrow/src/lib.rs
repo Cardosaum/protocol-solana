@@ -6,6 +6,32 @@ mod hashing;
 mod helpers;
 mod merkle_tree;
 
+#[macro_use]
+pub extern crate ark_std;
+
+use ark_std::boxed::Box;
+pub(crate) use ark_std::vec::Vec;
+
+pub mod mimc;
+pub mod poseidon;
+pub mod utils;
+
+pub use mimc::*;
+
+pub type Error = Box<dyn ark_std::error::Error>;
+
+pub mod prelude {
+    pub use ark_bls12_381;
+    pub use ark_bn254;
+    pub use ark_crypto_primitives;
+    pub use ark_ed_on_bls12_381;
+    pub use ark_ed_on_bn254;
+    pub use ark_ff;
+    pub use ark_groth16;
+    pub use ark_marlin;
+    pub use ark_std;
+}
+
 declare_id!("Dw96F8NjN84googpni4mtSnCuAud9XkaPUFM1RJX53cK");
 
 #[program]
