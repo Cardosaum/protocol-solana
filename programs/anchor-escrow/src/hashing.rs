@@ -106,6 +106,7 @@ impl<F: PrimeField> CircomPoseidonHasher<F> {
         msg!("> while bytes not empty...");
         while !bytes.is_empty() {
             msg!(">>> bytes size: {}...", bytes.len());
+            msg!(">>>> inner_vec_len_usize {}...", inner_vec_len_usize);
             // msg!(">>> Bytes: {:?}...", bytes);
             let mut inner_vec_buf = vec![0u8; inner_vec_len_usize];
             bytes.read_exact(&mut inner_vec_buf)?;
