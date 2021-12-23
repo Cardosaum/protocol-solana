@@ -64,15 +64,7 @@ impl MerkleTreeAccount {
         sol_log_compute_units();
         msg!("Print formated buf...");
         msg!("buf: {:?}", buf);
-        sol_log_compute_units();
-        msg!("Calling hash...");
-        // let value = DEBUGBN254Poseidon::hash(&self.params, &buf);
-        // sol_log_compute_units();
-        // msg!("\n\nE EU IHHHHHHAAA\n\n");
-        // buf32.copy_from_slice(&value);
-
-        if let Ok(value) = BN254CircomPoseidon3x5Hasher::hash(&self.params, &buf) {
-            msg!("\n\nE EU IHHHHHHAAA\n\n");
+        if let Ok(value) = BN254CircomPoseidon3x5Hasher::hash(&buf) {
             buf32.copy_from_slice(&value);
         }
         sol_log_compute_units();

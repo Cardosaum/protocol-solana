@@ -1,4 +1,4 @@
-use super::*;
+use anchor_lang::prelude::msg;
 use ark_crypto_primitives::{Error, CRH as CRHTrait};
 use ark_ff::{BigInteger, PrimeField};
 use ark_serialize::Read;
@@ -6,8 +6,17 @@ use ark_std::{marker::PhantomData, vec::Vec};
 use arkworks_gadgets::poseidon::CRH;
 use arkworks_utils::poseidon::sbox::PoseidonSbox;
 use arkworks_utils::poseidon::PoseidonParameters;
-use solana_program::log::sol_log_compute_units;
-// use solana_sdk::compute_budget::ComputeBudget
+use arkworks_utils::utils::bn254_x5_3::{
+    FULL_ROUNDS,
+    PARTIAL_ROUNDS,
+    WIDTH,
+    SBOX,
+    ROUND_CONSTS,
+    MDS_ENTRIES, get_poseidon_bn254_x5_3
+};
+use ark_bn254::Fr as Bn254;
+use arkworks_utils::utils::{get_bytes_array_from_hex};
+
 pub struct CircomPoseidonHasher<F: PrimeField>(PhantomData<F>);
 pub struct DebugPoseidon;
 use helpers::*;
@@ -33,137 +42,40 @@ fn to_field_elements<F: PrimeField>(bytes: &[u8]) -> Result<Vec<F>, Error> {
     Ok(res)
 }
 
+fn parse_vec<F: PrimeField>(arr: Vec<&str>) -> Vec<F> {
+	let mut res = Vec::new();
+    let mut ctr = 0;
+	for r in arr.iter() {
+        msg!("{}", ctr);
+		let c = F::from_be_bytes_mod_order(&get_bytes_array_from_hex(r));
+		res.push(c);
+        ctr += 1;
+	}
+	res
+}
+
+pub fn parse_matrix<F: PrimeField>(mds_entries: Vec<Vec<&str>>) -> Vec<Vec<F>> {
+	let width = mds_entries.len();
+	let mut mds: Vec<Vec<F>> = vec![vec![F::zero(); width]; width];
+	for i in 0..width {
+		for j in 0..width {
+			// TODO: Remove unwrap, handle error
+			mds[i][j] = F::from_be_bytes_mod_order(&get_bytes_array_from_hex(mds_entries[i][j]));
+		}
+	}
+	mds
+}
+
+
 impl<F: PrimeField> CircomPoseidonHasher<F> {
-    pub fn hash(input: &[u8], mut bytes: &[u8]) -> Result<Vec<u8>, Error> {
-        msg!("> Starting hash...");
-        sol_log_compute_units();
-
-        // msg!("> Stack bomb...");
-        // stack_bomb();
-        // sol_log_compute_units();
-
-        // msg!("> Ackermann...");
-        // call_ackermann();
-        // sol_log_compute_units();
-
-        // msg!("> Consume units...");
-        // consume_all_compute_units();
-        // sol_log_compute_units();
-
-        // let params = PoseidonParameters::<F>::from_bytes(bytes)?;
-
-        //
-        // Compute `from_bytes` manually
-        // loggin compute units as we progress
-        //
-
-        // msg!("> width_u8...");
-        let mut width_u8 = [0u8; 1];
-        bytes.read_exact(&mut width_u8)?;
-        let width = u8::from_be_bytes(width_u8);
-        // sol_log_compute_units();
-
-        // msg!("> full_rounds_len...");
-        let mut full_rounds_len = [0u8; 1];
-        bytes.read_exact(&mut full_rounds_len)?;
-        let full_rounds = u8::from_be_bytes(full_rounds_len);
-        // sol_log_compute_units();
-
-        // msg!("> partial_rounds_u8...");
-        let mut partial_rounds_u8 = [0u8; 1];
-        bytes.read_exact(&mut partial_rounds_u8)?;
-        let partial_rounds = u8::from_be_bytes(partial_rounds_u8);
-        // sol_log_compute_units();
-
-        // msg!("> exponentiation_u8...");
-        let mut exponentiation_u8 = [0u8; 1];
-        bytes.read_exact(&mut exponentiation_u8)?;
-        let exp = i8::from_be_bytes(exponentiation_u8);
-        // sol_log_compute_units();
-
-        // msg!("> round_key_len...");
-        let mut round_key_len = [0u8; 4];
-        bytes.read_exact(&mut round_key_len)?;
-        // sol_log_compute_units();
-
-        // msg!("> round_key_len_usize...");
-        let round_key_len_usize: usize = u32::from_be_bytes(round_key_len) as usize;
-        let mut round_keys_buf = vec![0u8; round_key_len_usize];
-        bytes.read_exact(&mut round_keys_buf)?;
-        // sol_log_compute_units();
-
-        // msg!("> round_keys...");
-        let round_keys = to_field_elements::<F>(&round_keys_buf)?;
-        let mut mds_matrix_inner_vec_len = [0u8; 4];
-        bytes.read_exact(&mut mds_matrix_inner_vec_len)?;
-        // sol_log_compute_units();
-
-        // msg!("> inner_vec_len_usize...");
-        let inner_vec_len_usize = u32::from_be_bytes(mds_matrix_inner_vec_len) as usize;
-        let mut mds_matrix: Vec<Vec<F>> = vec![];
-        // sol_log_compute_units();
-
-        msg!("> while bytes not empty...");
-        while !bytes.is_empty() {
-            msg!(">>> bytes size: {}...", bytes.len());
-            msg!(">>>> inner_vec_len_usize {}...", inner_vec_len_usize);
-            // msg!(">>> Bytes: {:?}...", bytes);
-            let mut inner_vec_buf = vec![0u8; inner_vec_len_usize];
-            bytes.read_exact(&mut inner_vec_buf)?;
-            // sol_log_compute_units();
-
-            // msg!(">>> max_size_bytes...");
-            let max_size_bytes = F::BigInt::NUM_LIMBS * 8;
-            // sol_log_compute_units();
-
-            // Pad the input with zeros
-            // msg!(">>> padding_len...");
-            let padding_len =
-                (max_size_bytes - (inner_vec_buf.len() % max_size_bytes)) % max_size_bytes;
-            // sol_log_compute_units();
-
-            // msg!(">>> padded_input...");
-            let padded_input: Vec<u8> = inner_vec_buf
-                .iter()
-                .cloned()
-                .chain(core::iter::repeat(0u8).take(padding_len))
-                .collect();
-            // sol_log_compute_units();
-
-            // msg!(">>> res...");
-            let res = padded_input
-                .chunks(max_size_bytes)
-                .map(F::read)
-                .collect::<Result<Vec<_>, _>>()?;
-            // sol_log_compute_units();
-
-            // msg!(">>> inner_vec...");
-            let inner_vec = res;
-            mds_matrix.push(inner_vec);
-            // sol_log_compute_units();
-
-            // msg!(">>> check empty bytes: {}...", bytes.is_empty());
-            // sol_log_compute_units();
-        }
-        // sol_log_compute_units();
-        msg!("REACHED HERE!!!");
-
-        let params = PoseidonParameters {
-            round_keys,
-            mds_matrix,
-            width,
-            full_rounds,
-            partial_rounds,
-            sbox: PoseidonSbox(exp),
-        };
-
+    pub fn hash(input: &[u8]) -> Result<Vec<u8>, Error> {
+        let params = get_poseidon_bn254_x5_3();
         let output: F = <CRH<F> as CRHTrait>::evaluate(&params, input)?;
         let value = output.into_repr().to_bytes_le();
         Ok(value)
     }
 }
 
-use ark_bn254::Fr as Bn254;
 pub type BN254CircomPoseidon3x5Hasher = CircomPoseidonHasher<Bn254>;
 pub type DEBUGBN254Poseidon = DebugPoseidon;
 
